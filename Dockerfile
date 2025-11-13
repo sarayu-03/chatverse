@@ -35,5 +35,5 @@ COPY --from=frontend /app/frontend/dist ./backend/public
 
 # ========== Stage 3: Production ==========
 WORKDIR /app/backend
-EXPOSE 5000
+EXPOSE 3000
 CMD ["npm", "start"]
