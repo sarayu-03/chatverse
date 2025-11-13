@@ -1,41 +1,39 @@
-# ========== Stage 1: Build frontend ==========
-FROM node:18 AS builder
+# ========== Stage 1: Build Frontend ==========
+FROM node:18 AS frontend
 
 WORKDIR /app
 
-# Copy only the package.json files we need (prevents copying everything early)
-COPY package*.json ./
-COPY chatify-master/frontend/package*.json ./chatify-master/frontend/
-COPY chatify-master/backend/package*.json ./chatify-master/backend/
+# Copy frontend package files
+COPY chatify-master/frontend/package*.json ./frontend/
 
-# Install dependencies for frontend and backend (build-time)
-RUN npm install --prefix chatify-master/frontend
-RUN npm install --prefix chatify-master/backend
+# Install dependencies
+RUN npm install --prefix frontend
 
-# Build the frontend (outputs to chatify-master/frontend/dist)
-RUN npm run build --prefix chatify-master/frontend
+# Copy all frontend source files
+COPY chatify-master/frontend ./frontend
 
-# ========== Stage 2: Production image ==========
-FROM node:18
+# Build the frontend (this will find index.html inside ./frontend)
+WORKDIR /app/frontend
+RUN npm run build
+
+
+# ========== Stage 2: Build Backend ==========
+FROM node:18 AS backend
 
 WORKDIR /app
 
-# Copy backend source into final image (from repo)
-COPY chatify-master/backend ./chatify-master/backend
+# Copy backend package files
+COPY chatify-master/backend/package*.json ./backend/
+RUN npm install --prefix backend
 
-# Copy built frontend from builder stage into same relative path
-COPY --from=builder /app/chatify-master/frontend/dist ./chatify-master/frontend/dist
+# Copy backend source
+COPY chatify-master/backend ./backend
 
-# Copy root package.json (optional, but harmless)
-COPY package*.json ./
+# Copy built frontend to backend/public (or wherever your backend serves static files)
+COPY --from=frontend /app/frontend/dist ./backend/public
 
-# Install backend runtime deps only
-RUN npm install --prefix chatify-master/backend --omit=dev
 
-ENV NODE_ENV=production
-ENV PORT=3000
-
-EXPOSE 3000
-
-# Start backend (which serves frontend/dist)
-CMD ["npm", "start", "--prefix", "chatify-master/backend"]
+# ========== Stage 3: Production ==========
+WORKDIR /app/backend
+EXPOSE 5000
+CMD ["npm", "start"]
